@@ -1,0 +1,48 @@
+{
+  "hold_repeat_rmse_N": 1.898437546924377,
+  "hold_batch_rmse_N": 3.307768586821584,
+  "hold_batch_by_source": [
+    {
+      "source": "UTL80A_TxyFz__5s_Step_Data.xlsx::Fz_0.5::1",
+      "reference_N": -4.903325,
+      "predicted_mean_N": -4.299040979937843,
+      "repeat_count": 5
+    },
+    {
+      "source": "UTL80A_TxyFz__5s_Step_Data.xlsx::Fz_1.5::1",
+      "reference_N": -14.709975,
+      "predicted_mean_N": -13.879888856811604,
+      "repeat_count": 5
+    },
+    {
+      "source": "UTL80A_TxyFz__5s_Step_Data.xlsx::Fz_1::1",
+      "reference_N": -9.80665,
+      "predicted_mean_N": -8.605245561018796,
+      "repeat_count": 5
+    },
+    {
+      "source": "UTL80A_TxyFz__5s_Step_Data.xlsx::Fz_1::2",
+      "reference_N": -9.80665,
+      "predicted_mean_N": -3.917382844123061,
+      "repeat_count": 5
+    }
+  ],
+  "hold_level_rmse_N": 3.317748699944164,
+  "direct_repeats": 20,
+  "simulation_cases": 0,
+  "fitted_direct_rmse_N": 1.7068261468370811,
+  "unloaded_250_300_std_N": 0.3115973152070226,
+  "unloaded_250_300_mean_N": -0.11158807541490531,
+  "nominal_zero_fz_during_tz_peak_rms_N": 17.001417830269755,
+  "coefficients_N_per_raw_count": [
+    -0.0003371364135970107,
+    -0.00021063607486196162,
+    -0.00017315853121948428,
+    -0.00025768296857917863,
+    -0.00019501474459750873,
+    -0.00012033275954845755,
+    -0.000735899539152667,
+    -0.00010052507972417366
+  ],
+  "qualification": "Direct vertical deadweight comparison assumes the logged mass acts along negative Fz. Other direct-step wrench components were not assigned labels."
+}

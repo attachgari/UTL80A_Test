@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="即時檢視 UTL80A 八路 RAW28 或校正後的力量與力矩。">
+  <title>UTL80A · 即時監視器</title>
+  <style>
+    :root { color-scheme: dark; --ink: #eaf2f8; --muted: #a7bacb; --line: #2b4053; --accent: #74e8d9; --panel: #132334; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0b1623; color: var(--ink); font: 15px/1.55 "Inter", system-ui, sans-serif; }
+    main { max-width: 1140px; margin: auto; padding: 48px 28px; }
+    h1, h2, p, dl, dd { margin: 0; }
+    h1 { font-size: clamp(2rem, 6vw, 3.6rem); letter-spacing: -.045em; line-height: 1.12; }
+    h2 { font-size: 1.12rem; }
+    header, .section-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .device { color: var(--accent); margin-bottom: 5px; font: 600 14px/1.5 "IBM Plex Mono", monospace; letter-spacing: .1em; }
+    .actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    button, select { border: 1px solid var(--line); border-radius: 8px; background: #1c3044; color: var(--ink); padding: 9px 14px; font: inherit; }
+    button { cursor: pointer; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #082323; font-weight: 700; }
+    button:disabled { opacity: .46; cursor: default; }
+    :focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    #status { min-height: 24px; margin: 17px 0 23px; color: var(--muted); }
+    #status[data-level="ok"] { color: var(--accent); }
+    #status[data-level="warn"], #health[data-level="warn"] { color: #ffce8a; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 18px; }
+    .metrics, .channels, .temps { display: grid; gap: 10px; }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .channels { grid-template-columns: repeat(8, minmax(0, 1fr)); margin-top: 16px; }
+    .temps { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 14px; }
+    .tile { min-width: 0; background: #0e1d2c; border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+    dt, .muted, #health { color: var(--muted); font-size: .86rem; }
+    dd { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+    .metrics dd { font-size: 1.25rem; margin-top: 3px; }
+    .channels dt { color: var(--accent); }
+    .channels dd { margin-top: 4px; }
+    .plot { margin-top: 14px; border-radius: 10px; background: #0e1d2c; border: 1px solid var(--line); }
+    canvas { width: 100%; height: 220px; display: block; }
+    .force-plots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .force-plots .plot { min-width: 0; padding: 8px 9px 0; }
+    .force-plots canvas { height: 142px; }
+    .force-plots h3 { margin: 0; font-size: .86rem; }
+    [hidden] { display: none !important; }
+    .section-foot { display: flex; justify-content: space-between; gap: 8px 20px; flex-wrap: wrap; margin-top: 9px; }
+    .footer { display: flex; gap: 12px 22px; flex-wrap: wrap; margin-top: 12px; }
+    @media (max-width: 920px) { .channels { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+    @media (max-width: 580px) {
+      main { padding: 26px 15px; }
+      .panel { padding: 14px; }
+      .channels, .metrics, .temps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .force-plots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+  <script src="app.js?v=1.0.25-fz" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="device">UTL80A / nRF54L15 · v1.0.25</p>
+        <h1>即時監視器</h1>
+      </div>
+      <div class="actions">
+        <button id="connect" class="primary">藍牙連線</button>
+        <button id="connect-usb">USB 連線</button>
+        <button id="data-mode" disabled>切換到 RAW</button>
+        <button id="disconnect" disabled>中斷連線</button>
+      </div>
+    </header>
+    <p id="status" role="status">選擇藍牙或 USB 連線。</p>
+
+    <section class="panel" aria-label="傳輸品質">
+      <dl class="metrics">
+        <div class="tile"><dt>實收速率 / 目標</dt><dd><span id="rate">—</span> / 100 Hz</dd></div>
+        <div class="tile" data-ble><dt>序號缺口</dt><dd id="gaps">—</dd></div>
+        <div class="tile" data-ble><dt>MCU 排程漏拍</dt><dd id="skipped">—</dd></div>
+        <div class="tile" data-ble><dt>BLE 傳送失敗</dt><dd id="rejected">—</dd></div>
+      </dl>
+      <div class="footer muted">
+        <span data-ble>ATT MTU <span id="mtu">—</span></span>
+        <span data-ble>連線間隔 <span id="interval">—</span></span>
+        <span data-ble>新鮮八路 <span id="raw-hz">—</span></span>
+        <span data-ble>新力量估計 <span id="wrench-hz">—</span></span>
+        <span id="health"></span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="raw-title">
+      <div class="section-head">
+        <div><h2 id="raw-title">線圈 RAW 數值</h2><p class="muted" id="units">LDC161x · 28-bit counts</p></div>
+        <div class="actions">
+          <button id="tare" class="primary" disabled>手動歸零</button>
+          <label class="muted" for="device-filter">韌體換算
+            <select id="device-filter" disabled>
+              <option value="" selected>選擇模式</option>
+              <option value="tcn">TCN（開機預設）</option>
+              <option value="fzDirect">Fz 砝碼測試</option>
+              <option value="tcnLinear">本版線性基準</option>
+              <option value="impact">舊版線性直通</option>
+              <option value="fast">快速平均 4 筆</option>
+              <option value="mean">穩定平均 24 筆</option>
+              <option value="kalman">卡爾曼</option>
+            </select>
+          </label>
+          <label class="muted" id="raw-channel" for="channel" hidden>波形通道 <select id="channel"></select></label>
+          <button id="download-raw" hidden disabled>下載 RAW CSV</button>
+        </div>
+      </div>
+      <p class="muted" id="tare-status" role="status" style="margin-top:8px">無載靜止時可手動歸零。</p>
+      <dl class="channels" id="channels"></dl>
+      <div class="plot" id="raw-plot" hidden><canvas id="plot" role="img" aria-label="所選線圈最近 2,000 筆的波形"></canvas></div>
+      <div class="force-plots" id="force-plots" aria-label="六軸力量與力矩波形"></div>
+      <div class="section-foot muted">
+        <span><span id="sample-count">0</span> / 2,000 筆 · 100 Hz 約 20 秒</span>
+        <span id="force-range">基準 ±20 N／±5 N·m · 超出時對稱縮放</span>
+        <span data-ble>封包序號 <span id="sequence">—</span></span>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="temp-title" id="temp-panel">
+      <h2 id="temp-title">溫度</h2>
+      <dl class="temps" id="temperatures"></dl>
+    </section>
+  </main>
+</body>
+</html>
